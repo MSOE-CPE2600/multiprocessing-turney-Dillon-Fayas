@@ -1,3 +1,10 @@
+/*
+* Name: Dillon Fayas
+* Assignment: Lab 11: Multiprocessing
+* Course: CPE 2600
+* Section: 111
+*/
+
 /// 
 //  jpegrw.c
 //  Based on example code found here:

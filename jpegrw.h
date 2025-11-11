@@ -1,3 +1,10 @@
+/*
+* Name: Dillon Fayas
+* Assignment: Lab 11: Multiprocessing
+* Course: CPE 2600
+* Section: 111
+*/
+
 #ifndef JPEGRW_H
 #define JPEGRW_H
 

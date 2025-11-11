@@ -1,3 +1,10 @@
+/*
+* Name: Dillon Fayas
+* Assignment: Lab 11: Multiprocessing
+* Course: CPE 2600
+* Section: 111
+*/
+
 /// 
 //  mandel.c
 //  Based on example code found here:
@@ -10,6 +17,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "jpegrw.h"
+#include <sys/types.h>
+#include <sys/wait.h>
 
 // local routines
 static int iteration_to_color( int i, int max );
@@ -17,6 +26,7 @@ static int iterations_at_point( double x, double y, int max );
 static void compute_image( imgRawImage *img, double xmin, double xmax,
 									double ymin, double ymax, int max );
 static void show_help();
+void generate_frame(int frame_index, double centerX, double centerY, double scale, int image_width, int image_height, int max);
 
 
 int main( int argc, char *argv[] )
@@ -25,19 +35,22 @@ int main( int argc, char *argv[] )
 
 	// These are the default configuration values used
 	// if no command line arguments are given.
-	const char *outfile = "mandel.jpg";
+	// const char *outfile = "mandel.jpg";
 	double xcenter = 0;
 	double ycenter = 0;
 	double xscale = 4;
-	double yscale = 0; // calc later
+	// double yscale = 0; // calc later
 	int    image_width = 1000;
 	int    image_height = 1000;
 	int    max = 1000;
 
+	int process_count = 1;
+	int frame_count = 50;
+
 	// For each command line argument given,
 	// override the appropriate configuration value.
 
-	while((c = getopt(argc,argv,"x:y:s:W:H:m:o:h"))!=-1) {
+	while((c = getopt(argc,argv,"x:y:s:W:H:m:o:p:f:h"))!=-1) {
 		switch(c) 
 		{
 			case 'x':
@@ -59,7 +72,13 @@ int main( int argc, char *argv[] )
 				max = atoi(optarg);
 				break;
 			case 'o':
-				outfile = optarg;
+				// outfile = optarg;
+				break;
+			case 'p' :
+				process_count = atoi(optarg);
+				break;
+			case 'f' :
+				frame_count = atoi(optarg);
 				break;
 			case 'h':
 				show_help();
@@ -68,11 +87,33 @@ int main( int argc, char *argv[] )
 		}
 	}
 
+	int active = 0;
+	for (int i = 0; i < frame_count; i++) {
+		if (active >= process_count)
+			wait(NULL), active--;
+		pid_t pid = fork();
+		if (pid == 0) {
+			generate_frame(i, xcenter, ycenter, xscale, image_width, image_height, max);
+			exit(0);
+		} else {
+			active++;
+		}
+		xscale *= 0.95; // zoom
+	}
+	while (active > 0) wait(NULL), active--;
+
+	return 0;
+}
+
+
+void generate_frame(int frame_index, double centerX, double centerY, double scaleX, int image_width, int image_height, int max) {
+	char filename[256];
+	snprintf(filename, sizeof(filename), "frame_%02d.jpg", frame_index);
 	// Calculate y scale based on x scale (settable) and image sizes in X and Y (settable)
-	yscale = xscale / image_width * image_height;
+	double scaleY = scaleX / image_width * image_height;
 
 	// Display the configuration of the image.
-	printf("mandel: x=%lf y=%lf xscale=%lf yscale=%1f max=%d outfile=%s\n",xcenter,ycenter,xscale,yscale,max,outfile);
+	printf("mandel: x=%lf y=%lf xscale=%lf yscale=%1f max=%d outfile=%s\n",centerX,centerY,scaleX,scaleY,max,filename);
 
 	// Create a raw image of the appropriate size.
 	imgRawImage* img = initRawImage(image_width,image_height);
@@ -81,19 +122,14 @@ int main( int argc, char *argv[] )
 	setImageCOLOR(img,0);
 
 	// Compute the Mandelbrot image
-	compute_image(img,xcenter-xscale/2,xcenter+xscale/2,ycenter-yscale/2,ycenter+yscale/2,max);
+	compute_image(img,centerX-scaleX/2,centerX+scaleX/2,centerY-scaleY/2,centerY+scaleY/2,max);
 
 	// Save the image in the stated file.
-	storeJpegImageFile(img,outfile);
+	storeJpegImageFile(img,filename);
 
 	// free the mallocs
 	freeRawImage(img);
-
-	return 0;
 }
-
-
-
 
 /*
 Return the number of iterations at point x, y
